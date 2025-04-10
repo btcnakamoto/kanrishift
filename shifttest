@@ -2,8 +2,119 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>CD出勤管理表 - v0.1</title>
-  <script src="https://cdn.tailwindcss.com">
+  <title>CD出勤管理表 - v0.2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .holiday { background-color: #fef2f2; }
+    .scroll-table {
+      overflow-x: auto;
+      white-space: nowrap;
+      border-radius: 0.5rem;
+      background-color: white;
+      border: 1px solid #e5e7eb;
+    }
+    table th, table td { white-space: nowrap; }
+    tr:nth-child(even) { background-color: #f9fafb; }
+    input[type="checkbox"] {
+      transform: scale(1.15);
+      cursor: pointer;
+    }
+    .time-input {
+      border: 1px solid #e5e7eb;
+      border-radius: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+      width: 120px;
+      transition: all 0.2s;
+    }
+    .time-input:focus {
+      outline: none;
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+    .time-input:read-only {
+      background-color: #f9fafb;
+      cursor: not-allowed;
+    }
+    .time-input-error {
+      border-color: #f87171;
+      background-color: #fee2e2;
+    }
+    .edited {
+      background-color: #f0f9ff;
+      transition: background-color 1s;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-white to-blue-50 min-h-screen text-gray-800">
+  <div class="min-h-screen flex flex-col">
+    <header class="bg-white shadow px-6 py-4 flex justify-between items-center border-b">
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl font-bold text-gray-800 tracking-tight">CD出勤管理</h1>
+      </div>
+      <div class="text-sm text-gray-500">バージョン v0.2</div>
+    </header>
+
+    <main class="flex-1 px-6 py-4">
+      <div class="bg-gradient-to-br from-blue-50 to-white p-6 rounded-xl shadow-lg border border-blue-100 mb-6">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4">🔍 フィルター</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">月</label>
+            <select id="filterMonth" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" onchange="updateEmployeeNames(); applyFilter();">
+              <option value="2025-2">2025年3月</option>
+              <option value="2025-3" selected>2025年4月</option>
+              <option value="2025-4">2025年5月</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">グループ</label>
+            <select id="filterGroup" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" onchange="updateEmployeeNames(); applyFilter();">
+              <option value="">すべて</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="MGR">MGR</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">名前</label>
+            <select id="filterName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" onchange="applyFilter();">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <!-- フィルターボタンを削除 -->
+        </div>
+      </div>
+
+      <div class="scroll-table p-4 ring-1 ring-gray-200 shadow-sm bg-white rounded-xl">
+        <table id="shiftTable" class="table-auto border-collapse text-center min-w-[1800px] w-full text-sm">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    <!-- 保存ボタンを削除 -->
+</main>
+
+    <section id="collabStatus" class="bg-white mx-6 mb-6 p-4 rounded-xl shadow text-sm text-gray-700 ring-1 ring-gray-100">
+      <h3 class="font-semibold text-gray-700 mb-2">🧑‍💻 現在編集中のユーザー</h3>
+      <ul class="list-disc list-inside" id="activeEditors">
+        <li>山田太郎</li>
+        <li>佐藤花子</li>
+      </ul>
+    </section>
+
+    <section id="updateLog" class="bg-white mx-6 mb-6 p-4 rounded shadow text-sm text-gray-600">
+      <h3 class="font-semibold text-gray-700 mb-2">🕓 最終更新者ログ</h3>
+      <p>最終更新者: <span id="lastEditor" class="font-semibold text-blue-700">佐藤花子（仮ユーザー）</span></p>
+      <p>更新日時: <span id="lastUpdated" class="text-gray-800">2025年3月1日 14時23分</span></p>
+    </section>
+
+    <footer class="bg-blue-50 text-center text-xs text-gray-600 py-4 border-t border-blue-100">
+      © 2025 CD出勤管理システム - すべての権利を保有します
+    </footer>
+  </div>
+
+  <script>
     function saveToLocal() {
       const table = document.getElementById('shiftTable');
       const tbody = table.querySelector('tbody');
@@ -11,11 +122,12 @@
       const saved = rows.map(row => {
         const tds = row.querySelectorAll('td');
         const name = tds[1].textContent;
+        const hours = tds[3].querySelector('input') ? tds[3].querySelector('input').value : '-';
         const checked = Array.from(tds)
           .slice(4, 35)
           .map((td, idx) => td.dataset.checked === '✓' ? idx + 1 : null)
           .filter(v => v !== null);
-        return { name, checked };
+        return { name, hours, checked };
       });
       localStorage.setItem('shiftData', JSON.stringify(saved));
       document.getElementById('lastEditor').textContent = 'あなた（ローカル保存）';
@@ -39,95 +151,7 @@
     }
     setInterval(simulateEditorActivity, 8000);
     simulateEditorActivity();
-  </script>
-  <style>
-    .holiday { background-color: #fef2f2; }
-    .scroll-table {
-      overflow-x: auto;
-      white-space: nowrap;
-      border-radius: 0.5rem;
-      background-color: white;
-      border: 1px solid #e5e7eb;
-    }
-    table th, table td { white-space: nowrap; }
-    tr:nth-child(even) { background-color: #f9fafb; }
-    input[type="checkbox"] {
-      transform: scale(1.15);
-      cursor: pointer;
-    }
-  </style>
-</head>
-<body class="bg-gradient-to-br from-white to-blue-50 min-h-screen text-gray-800">
-  <div class="min-h-screen flex flex-col">
-    <header class="bg-white shadow px-6 py-4 flex justify-between items-center border-b">
-      <div class="flex items-center gap-2">
-        <h1 class="text-2xl font-bold text-gray-800 tracking-tight">CD出勤管理</h1>
-      </div>
-      <div class="text-sm text-gray-500">バージョン v0.1</div>
-    </header>
 
-    <main class="flex-1 px-6 py-4">
-      <div class="bg-gradient-to-br from-blue-50 to-white p-6 rounded-xl shadow-lg border border-blue-100 mb-6">
-        <h2 class="text-lg font-semibold text-gray-700 mb-4">🔍 フィルター</h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700">月</label>
-            <select id="filterMonth" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-              <option value="2025-2">2025年3月</option>
-              <option value="2025-3">2025年4月</option>
-              <option value="2025-4">2025年5月</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">グループ</label>
-            <select id="filterGroup" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-              <option value="">すべて</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="MGR">MGR</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">名前</label>
-            <select id="filterName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-              <option value="">すべて</option>
-            </select>
-          </div>
-          <div class="flex items-end">
-            <button onclick="applyFilter()" class="w-full bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition">フィルター</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="scroll-table p-4 ring-1 ring-gray-200 shadow-sm bg-white rounded-xl">
-        <table id="shiftTable" class="table-auto border-collapse text-center min-w-[1800px] w-full text-sm">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    <button onclick="saveToLocal()" class="fixed bottom-6 right-6 z-50 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-full shadow-lg transition">💾 保存</button>
-</main>
-
-    <section id="collabStatus" class="bg-white mx-6 mb-6 p-4 rounded-xl shadow text-sm text-gray-700 ring-1 ring-gray-100">
-      <h3 class="font-semibold text-gray-700 mb-2">🧑‍💻 現在編集中のユーザー</h3>
-      <ul class="list-disc list-inside" id="activeEditors">
-        <li>山田太郎</li>
-        <li>佐藤花子</li>
-      </ul>
-    </section>
-
-    <section id="updateLog" class="bg-white mx-6 mb-6 p-4 rounded shadow text-sm text-gray-600">
-      <h3 class="font-semibold text-gray-700 mb-2">🕓 最終更新者ログ</h3>
-      <p>最終更新者: <span id="lastEditor" class="font-semibold text-blue-700">佐藤花子（仮ユーザー）</span></p>
-      <p>更新日時: <span id="lastUpdated" class="text-gray-800">2025年3月1日 14時23分</span></p>
-    </section>
-
-    <footer class="bg-blue-50 text-center text-xs text-gray-600 py-4 border-t border-blue-100">
-      © 2025 CD出勤管理システム - すべての権利を保有します
-    </footer>
-  </div>
-
-  <script>
     function updateTotal(checkbox) {
       const row = checkbox.closest('tr');
       const cells = row.querySelectorAll('td[data-checked]');
@@ -135,14 +159,81 @@
       cells.forEach(cell => {
         if (cell.dataset.checked === '✓') count++;
       });
-      row.querySelector('td[data-total]').textContent = count;
+      
+      const totalCell = row.querySelector('[data-total]');
+      totalCell.textContent = count;
+      
+      if (count === 0) {
+        totalCell.innerHTML = count + ' <span class="text-red-500 text-xs ml-1">⚠ 未出勤</span>';
+      } else if (count < 3) {
+        totalCell.innerHTML = count + ' <span class="text-yellow-500 text-xs ml-1">⚠ 少なめ</span>';
+      }
+    }
+
+    function validateTimeInput(input) {
+      // 時間のバリデーション
+      const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])～([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+      const isValid = timePattern.test(input.value);
+      
+      if (isValid || input.value === '-' || input.value === '') {
+        input.classList.remove('time-input-error');
+      } else {
+        input.classList.add('time-input-error');
+      }
+      
+      // 編集された場合はハイライト表示
+      input.parentElement.classList.add('edited');
+      setTimeout(() => {
+        input.parentElement.classList.remove('edited');
+      }, 2000);
+      
+      return isValid;
+    }
+
+    function updateEmployeeNames() {
+      const groupFilter = document.getElementById('filterGroup').value;
+      const nameFilter = document.getElementById('filterName');
+      const currentValue = nameFilter.value;
+      
+      // グループでフィルタリングした従業員の名前を取得
+      const filteredEmployees = employees.filter(emp => {
+        return groupFilter ? emp.group === groupFilter : true;
+      });
+      
+      // 名前フィルタを更新
+      nameFilter.innerHTML = '<option value="">すべて</option>';
+      
+      // 重複なしで名前を取得
+      const uniqueNames = [...new Set(filteredEmployees.map(emp => emp.name))];
+      uniqueNames.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        if (name === currentValue) {
+          option.selected = true;
+        }
+        nameFilter.appendChild(option);
+      });
+      
+      // 重要: 名前リストが変更された後に、以前の選択が無効になった場合は
+      // 「すべて」をデフォルトに設定し、フィルターを再適用
+      if (currentValue && !uniqueNames.includes(currentValue)) {
+        nameFilter.value = "";
+      }
     }
 
     function applyFilter() {
       const [year, month] = document.getElementById('filterMonth').value.split('-').map(Number);
+      const groupFilter = document.getElementById('filterGroup').value;
+      const nameFilter = document.getElementById('filterName').value;
+      
+      // 月の最終日を計算
+      const lastDay = new Date(year, month, 0).getDate();
+      
+      // 水曜日を休館日とする
       const holidays = [];
-      for (let i = 1; i <= 31; i++) {
-        const d = new Date(year, month, i);
+      for (let i = 1; i <= lastDay; i++) {
+        const d = new Date(year, month - 1, i);
         if (d.getDay() === 3) holidays.push(i);
       }
 
@@ -154,13 +245,15 @@
       thead.innerHTML = '';
       const theadRow = document.createElement("tr");
       theadRow.innerHTML = `
-        <th class="border px-3 py-2">グループ</th>
-        <th class="border px-3 py-2">名前</th>
-        <th class="border px-3 py-2">働き方</th>
-        <th class="border px-3 py-2">勤務時間</th>
+        <th class="border px-3 py-2 bg-gray-50">グループ</th>
+        <th class="border px-3 py-2 bg-gray-50">名前</th>
+        <th class="border px-3 py-2 bg-gray-50">働き方</th>
+        <th class="border px-3 py-2 bg-gray-50">勤務時間</th>
       `;
-      for (let i = 1; i <= 31; i++) {
-        const date = new Date(year, month, i);
+      
+      // 月の日数に合わせてヘッダー作成
+      for (let i = 1; i <= lastDay; i++) {
+        const date = new Date(year, month - 1, i);
         const day = weekDays[date.getDay()];
         const isHoliday = holidays.includes(i);
         const th = document.createElement("th");
@@ -172,6 +265,7 @@
         th.className = `border px-3 py-2 ${isHoliday ? 'holiday' : ''}`;
         theadRow.appendChild(th);
       }
+      
       const totalTh = document.createElement("th");
       totalTh.textContent = "出勤合計";
       totalTh.className = "border px-3 py-2 bg-gray-50 font-bold text-sm text-gray-700";
@@ -179,15 +273,54 @@
       thead.appendChild(theadRow);
 
       tbody.innerHTML = '';
-      employees.forEach(emp => {
+      
+      // フィルタリング処理
+      const filteredEmployees = employees.filter(emp => {
+        const matchGroup = groupFilter ? emp.group === groupFilter : true;
+        const matchName = nameFilter ? emp.name === nameFilter : true;
+        return matchGroup && matchName;
+      });
+
+      filteredEmployees.forEach(emp => {
         const tr = document.createElement("tr");
+        
+        // グループ、名前、働き方の列を作成
         tr.innerHTML = `
           <td class="border px-3 py-2">${emp.group}</td>
           <td class="border px-3 py-2">${emp.name}</td>
           <td class="border px-3 py-2">${emp.type}</td>
-          <td class="border px-3 py-2">${emp.type === '時短' ? emp.hours : '-'}</td>
         `;
-        for (let i = 1; i <= 31; i++) {
+        
+        // 勤務時間の列を作成（編集可能にする）
+        const timeTd = document.createElement("td");
+        timeTd.className = "border px-3 py-2";
+        
+        // 入力フィールドを作成
+        const timeInput = document.createElement("input");
+        timeInput.type = "text";
+        timeInput.className = "time-input text-center";
+        timeInput.value = emp.hours;
+        timeInput.placeholder = "例: 9:00～17:00";
+        
+        // 時短勤務の場合のみ編集可能にする
+        timeInput.readOnly = emp.type !== '時短';
+        if (emp.type !== '時短') {
+          timeInput.value = '-';
+        }
+        
+        // バリデーション
+        timeInput.addEventListener('change', function() {
+          validateTimeInput(this);
+          // 変更をemployeesに反映
+          emp.hours = this.value;
+        });
+        
+        // 入力フィールドをセルに追加
+        timeTd.appendChild(timeInput);
+        tr.appendChild(timeTd);
+        
+        // 日付のチェックボックスを作成
+        for (let i = 1; i <= lastDay; i++) {
           const td = document.createElement("td");
           td.className = `border px-2 py-2 ${holidays.includes(i) ? 'holiday' : ''}`;
           const isChecked = emp.days.includes(i);
@@ -195,6 +328,8 @@
           td.dataset.checked = isChecked ? '✓' : '□';
           tr.appendChild(td);
         }
+        
+        // 合計の列を作成
         const totalTd = document.createElement("td");
         totalTd.className = "border px-3 py-2 font-bold text-sm text-gray-700 bg-gray-50";
         totalTd.innerHTML = emp.days.length;
@@ -205,34 +340,46 @@
         }
         totalTd.setAttribute('data-total', '');
         tr.appendChild(totalTd);
+        
+        tbody.appendChild(tr);
+        
         // ランダムに編集中のユーザーを表示する（仮想）
         const editingBy = Math.random() < 0.3 ? allEditors[Math.floor(Math.random() * allEditors.length)] : null;
         if (editingBy) {
-          const editingTd = document.createElement("td");
-          editingTd.colSpan = 999;
-          editingTd.className = "text-left text-xs text-blue-600 italic px-3 py-1";
-          editingTd.textContent = `👤 ${editingBy} が編集中...`;
           const infoTr = document.createElement("tr");
           const infoTd = document.createElement("td");
-          infoTd.colSpan = 999;
-          infoTd.className = "text-xs text-blue-500 px-4 pt-1 pb-2";
+          infoTd.colSpan = lastDay + 5; // グループ、名前、働き方、勤務時間、日数、合計
+          infoTd.className = "text-xs text-blue-500 px-4 pt-1 pb-2 border-b";
           infoTd.textContent = `👤 ${editingBy} がこの行を編集中...`;
           infoTr.appendChild(infoTd);
           tbody.appendChild(infoTr);
         }
-        tbody.appendChild(tr);
       });
+      
+      // 結果が0件の場合のメッセージ
+      if (filteredEmployees.length === 0) {
+        const emptyRow = document.createElement('tr');
+        const emptyCell = document.createElement('td');
+        emptyCell.colSpan = lastDay + 5;
+        emptyCell.className = 'text-center py-8 text-gray-500';
+        emptyCell.textContent = '該当する従業員はいません';
+        emptyRow.appendChild(emptyCell);
+        tbody.appendChild(emptyRow);
+      }
     }
 
     const employees = [
       { group: 'A', name: '陸知花子', type: 'フルタイム', hours: '-', days: [1, 2, 3, 5, 7, 8, 9, 10] },
       { group: 'A', name: '大崎次郎', type: 'フルタイム', hours: '-', days: [1, 2, 3, 6, 7, 8, 9, 10] },
-      { group: 'A', name: '品川太郎', type: '時短', hours: '10:00〜14:00', days: [1, 2, 3, 4, 5, 6, 7, 8] },
+      { group: 'A', name: '品川太郎', type: '時短', hours: '10:00～14:00', days: [1, 2, 3, 4, 5, 6, 7, 8] },
       { group: 'B', name: '東京歌子', type: 'フルタイム', hours: '-', days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
-      { group: 'B', name: '川越一郎', type: '時短', hours: '09:30〜13:30', days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+      { group: 'B', name: '川越一郎', type: '時短', hours: '09:30～13:30', days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
       { group: 'MGR', name: '横浜夢', type: 'フルタイム', hours: '-', days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }
     ];
 
+    // 初期表示時に名前ドロップダウンを設定
+    updateEmployeeNames();
+    // 初期表示
     applyFilter();
   </script>
 </body>
