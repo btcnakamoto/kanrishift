@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>CD出勤管理表 - v0.2</title>
+  <title>CD出勤管理表 - v0.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .holiday { background-color: #fef2f2; }
@@ -44,15 +44,116 @@
       background-color: #f0f9ff;
       transition: background-color 1s;
     }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+    .modal-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 2rem;
+      border-radius: 0.5rem;
+      min-width: 300px;
+    }
+    .work-type-cell {
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .work-type-cell:hover {
+      background-color: #f0f9ff;
+    }
+    .time-input-small {
+      width: 80px;
+      text-align: center;
+    }
+    .time-select {
+      width: 60px;
+      padding: 0.25rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-white to-blue-50 min-h-screen text-gray-800">
+  <!-- Modal -->
+  <div id="workTypeModal" class="modal">
+    <div class="modal-content">
+      <h3 class="text-lg font-semibold mb-4">働き方設定</h3>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">働き方</label>
+        <select id="workTypeSelect" class="w-full border rounded-md p-2" onchange="toggleTimeInput()">
+          <option value="">選択してください</option>
+          <option value="時短">時短</option>
+          <option value="長休">長休</option>
+        </select>
+      </div>
+      <div id="timeInputContainer" class="mb-4 hidden">
+        <label class="block text-sm font-medium text-gray-700 mb-2">勤務時間</label>
+        <div class="flex items-center gap-2">
+          <select id="startHour" class="time-select">
+            <option value="">時</option>
+            <option value="09">09</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+            <option value="16">16</option>
+            <option value="17">17</option>
+          </select>
+          <select id="startMinute" class="time-select">
+            <option value="">分</option>
+            <option value="00">00</option>
+            <option value="15">15</option>
+            <option value="30">30</option>
+            <option value="45">45</option>
+          </select>
+          <span class="text-gray-500">～</span>
+          <select id="endHour" class="time-select">
+            <option value="">時</option>
+            <option value="09">09</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+            <option value="16">16</option>
+            <option value="17">17</option>
+          </select>
+          <select id="endMinute" class="time-select">
+            <option value="">分</option>
+            <option value="00">00</option>
+            <option value="15">15</option>
+            <option value="30">30</option>
+            <option value="45">45</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeWorkTypeModal()" class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">キャンセル</button>
+        <button onclick="saveWorkType()" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">設定</button>
+      </div>
+    </div>
+  </div>
+
   <div class="min-h-screen flex flex-col">
     <header class="bg-white shadow px-6 py-4 flex justify-between items-center border-b">
       <div class="flex items-center gap-2">
         <h1 class="text-2xl font-bold text-gray-800 tracking-tight">CD出勤管理</h1>
       </div>
-      <div class="text-sm text-gray-500">バージョン v0.2</div>
+      <div class="text-sm text-gray-500">バージョン v0.1</div>
     </header>
 
     <main class="flex-1 px-6 py-4">
@@ -115,6 +216,81 @@
   </div>
 
   <script>
+    let currentEditingCell = null;
+
+    function openWorkTypeModal(cell) {
+      currentEditingCell = cell;
+      const modal = document.getElementById('workTypeModal');
+      const select = document.getElementById('workTypeSelect');
+      
+      // 現在の値を設定
+      select.value = cell.textContent || '';
+      if (cell.textContent === '時短') {
+        const timeCell = cell.parentElement.querySelector('td:nth-child(4) input');
+        const [start, end] = timeCell.value.split('～');
+        const [startHour, startMin] = start.split(':');
+        const [endHour, endMin] = end.split(':');
+        
+        document.getElementById('startHour').value = startHour;
+        document.getElementById('startMinute').value = startMin;
+        document.getElementById('endHour').value = endHour;
+        document.getElementById('endMinute').value = endMin;
+        document.getElementById('timeInputContainer').classList.remove('hidden');
+      } else {
+        document.getElementById('timeInputContainer').classList.add('hidden');
+      }
+      
+      modal.style.display = 'block';
+    }
+
+    function closeWorkTypeModal() {
+      document.getElementById('workTypeModal').style.display = 'none';
+      currentEditingCell = null;
+    }
+
+    function toggleTimeInput() {
+      const select = document.getElementById('workTypeSelect');
+      const timeContainer = document.getElementById('timeInputContainer');
+      
+      if (select.value === '時短') {
+        timeContainer.classList.remove('hidden');
+      } else {
+        timeContainer.classList.add('hidden');
+      }
+    }
+
+    function saveWorkType() {
+      if (!currentEditingCell) return;
+      
+      const select = document.getElementById('workTypeSelect');
+      const startHour = document.getElementById('startHour').value;
+      const startMinute = document.getElementById('startMinute').value;
+      const endHour = document.getElementById('endHour').value;
+      const endMinute = document.getElementById('endMinute').value;
+      
+      const row = currentEditingCell.parentElement;
+      const timeCell = row.querySelector('td:nth-child(4)');
+      const timeInputElement = timeCell.querySelector('input');
+      
+      // 働き方を更新
+      currentEditingCell.textContent = select.value;
+      
+      // 時短の場合、勤務時間を更新して編集可能にする
+      if (select.value === '時短') {
+        if (startHour && startMinute && endHour && endMinute) {
+          timeInputElement.value = `${startHour}:${startMinute}～${endHour}:${endMinute}`;
+        } else {
+          timeInputElement.value = '';
+        }
+        timeInputElement.readOnly = false;
+      } else {
+        timeInputElement.value = '-';
+        timeInputElement.readOnly = true;
+      }
+      
+      closeWorkTypeModal();
+    }
+
     function saveToLocal() {
       const table = document.getElementById('shiftTable');
       const tbody = table.querySelector('tbody');
@@ -244,12 +420,12 @@
 
       thead.innerHTML = '';
       const theadRow = document.createElement("tr");
-      theadRow.innerHTML = 
+      theadRow.innerHTML = `
         <th class="border px-3 py-2 bg-gray-50">グループ</th>
         <th class="border px-3 py-2 bg-gray-50">名前</th>
         <th class="border px-3 py-2 bg-gray-50">働き方</th>
         <th class="border px-3 py-2 bg-gray-50">勤務時間</th>
-      ;
+      `;
       
       // 月の日数に合わせてヘッダー作成
       for (let i = 1; i <= lastDay; i++) {
@@ -257,12 +433,12 @@
         const day = weekDays[date.getDay()];
         const isHoliday = holidays.includes(i);
         const th = document.createElement("th");
-        th.innerHTML = 
+        th.innerHTML = `
           <div class='text-base font-semibold'>${i}</div>
           <div class='text-xs text-gray-500'>${day}</div>
           ${isHoliday ? "<div title='休館日' class='text-red-500'>🔒</div>" : ""}
-        ;
-        th.className = border px-3 py-2 ${isHoliday ? 'holiday' : ''};
+        `;
+        th.className = `border px-3 py-2 ${isHoliday ? 'holiday' : ''}`;
         theadRow.appendChild(th);
       }
       
@@ -285,11 +461,11 @@
         const tr = document.createElement("tr");
         
         // グループ、名前、働き方の列を作成
-        tr.innerHTML = 
+        tr.innerHTML = `
           <td class="border px-3 py-2">${emp.group}</td>
           <td class="border px-3 py-2">${emp.name}</td>
-          <td class="border px-3 py-2">${emp.type}</td>
-        ;
+          <td class="border px-3 py-2 work-type-cell" onclick="openWorkTypeModal(this)">${emp.type}</td>
+        `;
         
         // 勤務時間の列を作成（編集可能にする）
         const timeTd = document.createElement("td");
@@ -322,9 +498,9 @@
         // 日付のチェックボックスを作成
         for (let i = 1; i <= lastDay; i++) {
           const td = document.createElement("td");
-          td.className = border px-2 py-2 ${holidays.includes(i) ? 'holiday' : ''};
+          td.className = `border px-2 py-2 ${holidays.includes(i) ? 'holiday' : ''}`;
           const isChecked = emp.days.includes(i);
-          td.innerHTML = <input type="checkbox" class="form-checkbox h-5 w-5 ${isChecked ? 'text-blue-600' : 'text-gray-400'}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.dataset.checked = this.checked ? '✓' : '□'; updateTotal(this);" />;
+          td.innerHTML = `<input type="checkbox" class="form-checkbox h-5 w-5 ${isChecked ? 'text-blue-600' : 'text-gray-400'}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.dataset.checked = this.checked ? '✓' : '□'; updateTotal(this);" />`;
           td.dataset.checked = isChecked ? '✓' : '□';
           tr.appendChild(td);
         }
@@ -350,7 +526,7 @@
           const infoTd = document.createElement("td");
           infoTd.colSpan = lastDay + 5; // グループ、名前、働き方、勤務時間、日数、合計
           infoTd.className = "text-xs text-blue-500 px-4 pt-1 pb-2 border-b";
-          infoTd.textContent = 👤 ${editingBy} がこの行を編集中...;
+          infoTd.textContent = `👤 ${editingBy} がこの行を編集中...`;
           infoTr.appendChild(infoTd);
           tbody.appendChild(infoTr);
         }
