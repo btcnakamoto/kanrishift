@@ -4,9 +4,6 @@
   <meta charset="UTF-8" />
   <title>CD出勤管理表 - v0.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
   <style>
     .holiday { background-color: #fef2f2; }
     .scroll-table {
@@ -18,6 +15,10 @@
     }
     table th, table td { white-space: nowrap; }
     tr:nth-child(even) { background-color: #f9fafb; }
+    input[type="checkbox"] {
+      transform: scale(1.15);
+      cursor: pointer;
+    }
     .time-input {
       border: 1px solid #e5e7eb;
       border-radius: 0.25rem;
@@ -43,6 +44,28 @@
       background-color: #f0f9ff;
       transition: background-color 1s;
     }
+    .cell-clickable {
+      cursor: pointer;
+    }
+    .attendance-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .attendance-on {
+      background-color: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .attendance-off {
+      background-color: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
     .modal {
       display: none;
       position: fixed;
@@ -52,84 +75,144 @@
       height: 100%;
       background-color: rgba(0, 0, 0, 0.5);
       z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(3px);
+      transition: all 0.3s ease;
     }
     .modal-content {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
       background-color: white;
       padding: 2rem;
-      border-radius: 0.5rem;
-      min-width: 300px;
+      border-radius: 0.75rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+      width: 100%;
+      transform: translateY(0);
+      transition: transform 0.3s ease;
+      border: 1px solid rgba(147, 197, 253, 0.3);
+      background-image: linear-gradient(to bottom, #f9fafb, #ffffff);
     }
-    .work-type-cell {
-      cursor: pointer;
-      transition: all 0.2s;
+    .modal.show .modal-content {
+      transform: translateY(0);
+      animation: modal-pop 0.4s ease-out;
     }
-    .work-type-cell:hover {
-      background-color: #f0f9ff;
+    @keyframes modal-pop {
+      0% { transform: scale(0.95); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
     }
-    .time-input-small {
-      width: 80px;
-      text-align: center;
-    }
-    .time-select {
-      width: 120px;
-      padding: 0.25rem;
-      border: 1px solid #e5e7eb;
-      border-radius: 0.25rem;
-      font-size: 0.875rem;
-    }
-    .flatpickr-input {
-      width: 120px !important;
-    }
-    .day-cell {
-      cursor: pointer;
-      transition: all 0.2s;
-      min-width: 40px;
-      min-height: 40px;
+    .modal-header {
       display: flex;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #e5e7eb;
+      position: relative;
+    }
+    .modal-header h3 {
+      margin: 0;
+      color: #1e40af;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .modal-header h3 i {
+      color: #3b82f6;
+      font-size: 1.25rem;
+    }
+    .modal-body {
+      margin-bottom: 1.5rem;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e7eb;
+    }
+    .btn {
+      padding: 0.5rem 1.25rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    .btn-cancel {
+      background-color: #f3f4f6;
+      color: #4b5563;
+      border: 1px solid #e5e7eb;
+    }
+    .btn-cancel:hover {
+      background-color: #e5e7eb;
+      transform: translateY(-1px);
+    }
+    .btn-primary {
+      background-color: #3b82f6;
+      color: white;
+      border: 1px solid #2563eb;
+    }
+    .btn-primary:hover {
+      background-color: #2563eb;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
+    }
+    .btn i {
+      margin-right: 0.5rem;
+    }
+    .work-type-clickable {
+      cursor: pointer;
+      position: relative;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      background-color: #f0f9ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+      transition: all 0.2s ease;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
     }
-    .day-cell:hover {
-      background-color: #f0f9ff;
+    .work-type-clickable:hover {
+      background-color: #dbeafe;
+      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+      transform: translateY(-1px);
     }
-    .day-cell.rest {
-      background-color: #fee2e2;
-      color: #dc2626;
+    .work-type-clickable::after {
+      content: "✏️";
+      font-size: 0.75rem;
+      margin-left: 0.25rem;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .work-type-clickable:hover::after {
+      opacity: 1;
+    }
+    select, input {
+      transition: all 0.2s;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.5rem;
+      width: 100%;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    }
+    .form-label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: #374151;
     }
   </style>
 </head>
 <body class="bg-gradient-to-br from-white to-blue-50 min-h-screen text-gray-800">
-  <!-- Modal -->
-  <div id="workTypeModal" class="modal">
-    <div class="modal-content">
-      <h3 class="text-lg font-semibold mb-4">働き方設定</h3>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-2">働き方</label>
-        <select id="workTypeSelect" class="w-full border rounded-md p-2" onchange="toggleTimeInput()">
-          <option value="">選択してください</option>
-          <option value="時短">時短</option>
-          <option value="長休">長休</option>
-        </select>
-      </div>
-      <div id="timeInputContainer" class="mb-4 hidden">
-        <label class="block text-sm font-medium text-gray-700 mb-2">勤務時間</label>
-        <div class="flex items-center gap-2">
-          <input type="text" id="startTime" class="time-select" placeholder="開始時間">
-          <span class="text-gray-500">～</span>
-          <input type="text" id="endTime" class="time-select" placeholder="終了時間">
-        </div>
-      </div>
-      <div class="flex justify-end gap-2">
-        <button onclick="closeWorkTypeModal()" class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">キャンセル</button>
-        <button onclick="saveWorkType()" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">設定</button>
-      </div>
-    </div>
-  </div>
-
   <div class="min-h-screen flex flex-col">
     <header class="bg-white shadow px-6 py-4 flex justify-between items-center border-b">
       <div class="flex items-center gap-2">
@@ -165,6 +248,7 @@
               <option value="">すべて</option>
             </select>
           </div>
+          <!-- フィルターボタンを削除 -->
         </div>
       </div>
 
@@ -174,10 +258,11 @@
           <tbody></tbody>
         </table>
       </div>
-    </main>
+    <!-- 保存ボタンを削除 -->
+</main>
 
     <section id="collabStatus" class="bg-white mx-6 mb-6 p-4 rounded-xl shadow text-sm text-gray-700 ring-1 ring-gray-100">
-      <h3 class="font-semibold text-gray-700 mb-2">🧑‍💻 現在編集中のユーザー</h3>
+      <h3 class="font-semibold text-gray-700 mb-2">🧑‍💻 編集中のユーザー</h3>
       <ul class="list-disc list-inside" id="activeEditors">
         <li>山田太郎</li>
         <li>佐藤花子</li>
@@ -185,122 +270,109 @@
     </section>
 
     <section id="updateLog" class="bg-white mx-6 mb-6 p-4 rounded shadow text-sm text-gray-600">
-      <h3 class="font-semibold text-gray-700 mb-2">🕓 最終更新者ログ</h3>
+      <h3 class="font-semibold text-gray-700 mb-2">🕓 最終更新ログ</h3>
       <p>最終更新者: <span id="lastEditor" class="font-semibold text-blue-700">佐藤花子（仮ユーザー）</span></p>
       <p>更新日時: <span id="lastUpdated" class="text-gray-800">2025年3月1日 14時23分</span></p>
     </section>
 
     <footer class="bg-blue-50 text-center text-xs text-gray-600 py-4 border-t border-blue-100">
-      © 2025 CD出勤管理システム - すべての権利を保有します
+      © 2025 CD出勤管理システム - All Rights Reserved
     </footer>
   </div>
 
-  <script>
-    let currentEditingCell = null;
-
-    // Flatpickrの設定
-    flatpickr.localize(flatpickr.l10ns.ja);
-    const timeConfig = {
-      enableTime: true,
-      noCalendar: true,
-      dateFormat: "H:i",
-      time_24hr: true,
-      minuteIncrement: 15
-    };
-
-    // 時間選択の初期化
-    function initTimePickers() {
-      flatpickr("#startTime", timeConfig);
-      flatpickr("#endTime", timeConfig);
-    }
-
-    // ページ読み込み時に初期化
-    document.addEventListener('DOMContentLoaded', initTimePickers);
-
-    function openWorkTypeModal(cell) {
-      currentEditingCell = cell;
-      const modal = document.getElementById('workTypeModal');
-      const select = document.getElementById('workTypeSelect');
-      
-      select.value = cell.textContent || '';
-      if (cell.textContent === '時短') {
-        const timeCell = cell.parentElement.querySelector('td:nth-child(4) input');
-        const [start, end] = timeCell.value.split('～');
+  <!-- 働き方設定モーダル -->
+  <div id="workTypeModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="text-lg font-semibold"><i class="fas fa-user-clock"></i>働き方設定</h3>
+      </div>
+      <div class="modal-body">
+        <div class="mb-4">
+          <label class="form-label">働き方を選択</label>
+          <select id="workTypeSelect" class="block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+            <option value="">空白</option>
+            <option value="時短">時短</option>
+            <option value="長休">長休</option>
+          </select>
+        </div>
         
-        document.getElementById('startTime').value = start;
-        document.getElementById('endTime').value = end;
-        document.getElementById('timeInputContainer').classList.remove('hidden');
-      } else {
-        document.getElementById('timeInputContainer').classList.add('hidden');
-      }
+        <div id="workTimeContainer" class="mb-4 hidden">
+          <label class="form-label">勤務時間</label>
+          <div class="flex items-center gap-2">
+            <input type="time" id="workTimeStartInput" class="time-input" placeholder="開始時間">
+            <span class="text-gray-500">～</span>
+            <input type="time" id="workTimeEndInput" class="time-input" placeholder="終了時間">
+          </div>
+          <p class="text-xs text-gray-500 mt-1">※ 開始時間と終了時間を選択してください</p>
+        </div>
+      </div>
       
-      modal.style.display = 'block';
-    }
+      <div class="modal-footer">
+        <button id="cancelWorkType" class="btn btn-cancel"><i class="fas fa-times"></i>キャンセル</button>
+        <button id="saveWorkType" class="btn btn-primary"><i class="fas fa-check"></i>設定</button>
+      </div>
+    </div>
+  </div>
 
-    function closeWorkTypeModal() {
-      document.getElementById('workTypeModal').style.display = 'none';
-      currentEditingCell = null;
+  <script>
+    function saveToLocal() {
+      const table = document.getElementById('shiftTable');
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const saved = rows.map(row => {
+        const tds = row.querySelectorAll('td');
+        const name = tds[1].textContent;
+        const hours = tds[3].textContent;
+        const checked = Array.from(tds)
+          .slice(4, 35)
+          .map((td, idx) => td.dataset.checked === '✓' ? idx + 1 : null)
+          .filter(v => v !== null);
+        return { name, hours, checked };
+      });
+      localStorage.setItem('shiftData', JSON.stringify(saved));
+      document.getElementById('lastEditor').textContent = 'あなた（ローカル保存）';
+      document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ja-JP');
+      alert('ローカルに保存しました！');
     }
-
-    function toggleTimeInput() {
-      const select = document.getElementById('workTypeSelect');
-      const timeContainer = document.getElementById('timeInputContainer');
-      
-      if (select.value === '時短') {
-        timeContainer.classList.remove('hidden');
-      } else {
-        timeContainer.classList.add('hidden');
-      }
+  
+    // 定期的に編集中ユーザーを模擬更新
+    const allEditors = ['山田太郎', '佐藤花子', '伊藤涼', '中村海'];
+    function simulateEditorActivity() {
+      const count = Math.floor(Math.random() * 3) + 1;
+      const shuffled = allEditors.sort(() => 0.5 - Math.random());
+      const active = shuffled.slice(0, count);
+      const list = document.getElementById('activeEditors');
+      list.innerHTML = '';
+      active.forEach(name => {
+        const li = document.createElement('li');
+        li.textContent = name;
+        list.appendChild(li);
+      });
     }
+    setInterval(simulateEditorActivity, 8000);
+    simulateEditorActivity();
 
-    function saveWorkType() {
-      if (!currentEditingCell) return;
-      
-      const select = document.getElementById('workTypeSelect');
-      const startTime = document.getElementById('startTime').value;
-      const endTime = document.getElementById('endTime').value;
-      
-      const row = currentEditingCell.parentElement;
-      const timeCell = row.querySelector('td:nth-child(4)');
-      const timeInputElement = timeCell.querySelector('input');
-      
-      currentEditingCell.textContent = select.value;
-      
-      if (select.value === '時短') {
-        if (startTime && endTime) {
-          timeInputElement.value = `${startTime}～${endTime}`;
-        } else {
-          timeInputElement.value = '';
-        }
-        timeInputElement.readOnly = false;
-      } else {
-        timeInputElement.value = '-';
-        timeInputElement.readOnly = true;
-      }
-      
-      closeWorkTypeModal();
-    }
-
-    function updateTotal(cell) {
-      const row = cell.closest('tr');
-      const cells = row.querySelectorAll('td[data-status]');
+    function updateTotal(checkbox) {
+      const row = checkbox.closest('tr');
+      const cells = row.querySelectorAll('td[data-checked]');
       let count = 0;
       cells.forEach(cell => {
-        if (cell.dataset.status !== 'rest') count++;
+        if (cell.dataset.checked === '✓') count++;
       });
       
       const totalCell = row.querySelector('[data-total]');
       totalCell.textContent = count;
       
       if (count === 0) {
-        totalCell.innerHTML = count + ' <span class="text-red-500 text-xs ml-1">⚠ 未出勤</span>';
+        totalCell.innerHTML = count + ' <span class="text-red-500 text-xs ml-1">⚠ 出勤なし</span>';
       } else if (count < 3) {
-        totalCell.innerHTML = count + ' <span class="text-yellow-500 text-xs ml-1">⚠ 少なめ</span>';
+        totalCell.innerHTML = count + ' <span class="text-yellow-500 text-xs ml-1">⚠ 少ない</span>';
       }
     }
 
     function validateTimeInput(input) {
-      const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])～([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+      // 時間検証
+      const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
       const isValid = timePattern.test(input.value);
       
       if (isValid || input.value === '-' || input.value === '') {
@@ -309,6 +381,7 @@
         input.classList.add('time-input-error');
       }
       
+      // 編集時ハイライト表示
       input.parentElement.classList.add('edited');
       setTimeout(() => {
         input.parentElement.classList.remove('edited');
@@ -322,12 +395,15 @@
       const nameFilter = document.getElementById('filterName');
       const currentValue = nameFilter.value;
       
+      // グループでフィルタリングした従業員名を取得
       const filteredEmployees = employees.filter(emp => {
         return groupFilter ? emp.group === groupFilter : true;
       });
       
+      // 名前フィルターを更新
       nameFilter.innerHTML = '<option value="">すべて</option>';
       
+      // 重複しない名前を取得
       const uniqueNames = [...new Set(filteredEmployees.map(emp => emp.name))];
       uniqueNames.forEach(name => {
         const option = document.createElement('option');
@@ -339,22 +415,124 @@
         nameFilter.appendChild(option);
       });
       
+      // 重要: 名前リストが変更され、以前の選択が無効になった場合、
+      // デフォルトで「すべて」に設定し、フィルターを再適用
       if (currentValue && !uniqueNames.includes(currentValue)) {
         nameFilter.value = "";
       }
     }
 
-    function toggleDayStatus(cell) {
-      if (cell.dataset.status === 'rest') {
-        cell.dataset.status = '';
-        cell.textContent = '';
-        cell.classList.remove('rest');
+    // 働き方設定モーダル関連変数
+    let currentEmployeeRow = null;
+
+    // モーダルを開く関数
+    function openWorkTypeModal(employeeRow) {
+      currentEmployeeRow = employeeRow;
+      const modal = document.getElementById('workTypeModal');
+      modal.style.display = 'flex';
+      
+      // アニメーション効果を追加
+      setTimeout(() => {
+        modal.classList.add('show');
+      }, 10);
+      
+      // 現在の働き方を選択状態に
+      const workTypeTd = employeeRow.querySelector('td:nth-child(3)');
+      const currentWorkType = workTypeTd.textContent;
+      
+      const workTypeSelect = document.getElementById('workTypeSelect');
+      workTypeSelect.value = currentWorkType;
+      
+      // 時短の場合は勤務時間を表示
+      if (currentWorkType === '時短') {
+        document.getElementById('workTimeContainer').classList.remove('hidden');
+        const timeTd = employeeRow.querySelector('td:nth-child(4)');
+        const timeValue = timeTd.textContent;
+        
+        // 時間を分割して開始時間と終了時間に設定
+        if (timeValue.includes('～')) {
+          const [startTime, endTime] = timeValue.split('～');
+          document.getElementById('workTimeStartInput').value = startTime;
+          document.getElementById('workTimeEndInput').value = endTime;
+        } else {
+          document.getElementById('workTimeStartInput').value = '';
+          document.getElementById('workTimeEndInput').value = '';
+        }
       } else {
-        cell.dataset.status = 'rest';
-        cell.textContent = '休';
-        cell.classList.add('rest');
+        document.getElementById('workTimeContainer').classList.add('hidden');
+        document.getElementById('workTimeStartInput').value = '';
+        document.getElementById('workTimeEndInput').value = '';
       }
-      updateTotal(cell);
+      
+      // 選択ボックス変更イベント
+      workTypeSelect.addEventListener('change', function() {
+        if (this.value === '時短') {
+          document.getElementById('workTimeContainer').classList.remove('hidden');
+        } else {
+          document.getElementById('workTimeContainer').classList.add('hidden');
+        }
+      });
+    }
+
+    // モーダルを閉じる関数
+    function closeWorkTypeModal() {
+      const modal = document.getElementById('workTypeModal');
+      modal.classList.remove('show');
+      
+      // アニメーション完了後に非表示
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 300);
+      
+      currentEmployeeRow = null;
+    }
+
+    // 働き方を保存する関数
+    function saveWorkType() {
+      if (!currentEmployeeRow) return;
+      
+      const selectedWorkType = document.getElementById('workTypeSelect').value;
+      const workTypeTd = currentEmployeeRow.querySelector('td:nth-child(3)');
+      
+      // 働き方を表示するボタン要素を取得または作成
+      let workTypeBtn = workTypeTd.querySelector('.work-type-clickable');
+      if (!workTypeBtn) {
+        workTypeBtn = document.createElement('span');
+        workTypeBtn.className = 'work-type-clickable';
+        workTypeBtn.addEventListener('click', function() {
+          openWorkTypeModal(currentEmployeeRow);
+        });
+        workTypeTd.innerHTML = '';
+        workTypeTd.appendChild(workTypeBtn);
+      }
+      
+      // 選択された働き方をボタンに表示（空白の場合も「空白」と表示）
+      workTypeBtn.textContent = selectedWorkType === '' ? '空白' : selectedWorkType;
+      
+      // 従業員データを更新
+      const nameCell = currentEmployeeRow.querySelector('td:nth-child(2)');
+      const employeeName = nameCell.textContent;
+      const employee = employees.find(emp => emp.name === employeeName);
+      
+      if (employee) {
+        employee.type = selectedWorkType;
+        
+        // 時短の場合は勤務時間を更新
+        if (selectedWorkType === '時短') {
+          const startTime = document.getElementById('workTimeStartInput').value;
+          const endTime = document.getElementById('workTimeEndInput').value;
+          const workTime = startTime + '～' + endTime;
+          const timeTd = currentEmployeeRow.querySelector('td:nth-child(4)');
+          timeTd.textContent = workTime;
+          employee.hours = workTime;
+        } else {
+          const timeTd = currentEmployeeRow.querySelector('td:nth-child(4)');
+          timeTd.textContent = '-';
+          employee.hours = '-';
+        }
+      }
+      
+      closeWorkTypeModal();
     }
 
     function applyFilter() {
@@ -362,8 +540,10 @@
       const groupFilter = document.getElementById('filterGroup').value;
       const nameFilter = document.getElementById('filterName').value;
       
+      // 月の最終日を計算
       const lastDay = new Date(year, month, 0).getDate();
       
+      // 水曜日を休館日に設定
       const holidays = [];
       for (let i = 1; i <= lastDay; i++) {
         const d = new Date(year, month - 1, i);
@@ -375,11 +555,7 @@
       const thead = table.querySelector("thead");
       const tbody = table.querySelector("tbody");
 
-      // 清空表格内容
       thead.innerHTML = '';
-      tbody.innerHTML = '';
-
-      // 创建表头
       const theadRow = document.createElement("tr");
       theadRow.innerHTML = `
         <th class="border px-3 py-2 bg-gray-50">グループ</th>
@@ -388,14 +564,18 @@
         <th class="border px-3 py-2 bg-gray-50">勤務時間</th>
       `;
       
-      // 添加日期列
+      // 月の日数に基づいてヘッダーを作成
       for (let i = 1; i <= lastDay; i++) {
         const date = new Date(year, month - 1, i);
         const day = weekDays[date.getDay()];
         const isHoliday = holidays.includes(i);
         const th = document.createElement("th");
+        th.innerHTML = `
+          <div class='text-base font-semibold'>${i}</div>
+          <div class='text-xs text-gray-500'>${day}</div>
+          ${isHoliday ? "<div title='休館日' class='text-red-500'>🔒</div>" : ""}
+        `;
         th.className = `border px-3 py-2 ${isHoliday ? 'holiday' : ''}`;
-        th.innerHTML = `${i}<br>${day}${isHoliday ? "<br><span title='休館日' class='text-red-500'>🔒</span>" : ""}`;
         theadRow.appendChild(th);
       }
       
@@ -405,114 +585,128 @@
       theadRow.appendChild(totalTh);
       thead.appendChild(theadRow);
 
-      // 过滤员工数据
+      tbody.innerHTML = '';
+      
+      // フィルタリング処理
       const filteredEmployees = employees.filter(emp => {
         const matchGroup = groupFilter ? emp.group === groupFilter : true;
         const matchName = nameFilter ? emp.name === nameFilter : true;
         return matchGroup && matchName;
       });
 
-      // 创建员工行
-      // 过滤员工数据后，生成每一行
-      // 清空 tbody 内容
-      tbody.innerHTML = '';
-
-      // 使用纯 DOM 方式创建每一行员工数据
       filteredEmployees.forEach(emp => {
-        // 创建 tr 元素
         const tr = document.createElement("tr");
-
-        // 1. 创建「グループ」单元格
-        const groupTd = document.createElement("td");
-        groupTd.className = "border px-3 py-2";
-        groupTd.textContent = emp.group;
-        tr.appendChild(groupTd);
-
-        // 2. 创建「名前」单元格
-        const nameTd = document.createElement("td");
-        nameTd.className = "border px-3 py-2";
-        nameTd.textContent = emp.name;
-        tr.appendChild(nameTd);
-
-        // 3. 创建「働き方」单元格，并绑定点击事件弹出 Modal
+        
+        // グループ、名前列を作成
+        tr.innerHTML = `
+          <td class="border px-3 py-2">${emp.group}</td>
+          <td class="border px-3 py-2">${emp.name}</td>
+        `;
+        
+        // 働き方列（クリック可能）
         const workTypeTd = document.createElement("td");
-        workTypeTd.className = "border px-3 py-2 work-type-cell";
-        workTypeTd.textContent = emp.type;
-        workTypeTd.addEventListener("click", function () {
-          openWorkTypeModal(workTypeTd);
+        workTypeTd.className = "border px-3 py-2";
+        
+        // 働き方ボタン作成
+        const workTypeBtn = document.createElement("span");
+        workTypeBtn.className = "work-type-clickable";
+        workTypeBtn.textContent = emp.type === '' ? '空白' : emp.type;
+        workTypeBtn.addEventListener('click', function() {
+          openWorkTypeModal(tr);
         });
+        
+        workTypeTd.appendChild(workTypeBtn);
         tr.appendChild(workTypeTd);
-
-        // 4. 创建「勤務時間」单元格与输入框
+        
+        // 勤務時間列（表示のみ）
         const timeTd = document.createElement("td");
         timeTd.className = "border px-3 py-2";
-        const timeInput = document.createElement("input");
-        timeInput.type = "text";
-        timeInput.className = "time-input text-center";
-        timeInput.value = emp.hours;
-        timeInput.placeholder = "例: 9:00～17:00";
-        // 仅当类型为「時短」时允许输入，否则设为只读并置为 '-'
-        if (emp.type === '時短') {
-          timeInput.readOnly = false;
-        } else {
-          timeInput.readOnly = true;
-          timeInput.value = '-';
-        }
-        // 绑定 change 事件进行验证及更新数据
-        timeInput.addEventListener('change', function() {
-          validateTimeInput(this);
-          emp.hours = this.value;
-        });
-        timeTd.appendChild(timeInput);
+        timeTd.textContent = emp.type === '時短' ? emp.hours : '-';
         tr.appendChild(timeTd);
-
-        // 5. 创建日期单元格（每日）—确保每个单元格都是独立的 td
+        
+        // 日付チェックボックス作成
         for (let i = 1; i <= lastDay; i++) {
-          const dayTd = document.createElement("td");
-          dayTd.className = `border px-2 py-2 day-cell ${holidays.includes(i) ? 'holiday' : ''}`;
-          dayTd.dataset.day = i; // 设置 data-day 属性
-
-          // 如果该天不在 emp.days 内，则视作休息日
-          if (!emp.days.includes(i)) {
-            dayTd.dataset.status = 'rest';
-            dayTd.textContent = '休';
-            dayTd.classList.add('rest');
+          const td = document.createElement("td");
+          td.className = `border px-2 py-2 ${holidays.includes(i) ? 'holiday' : ''} cell-clickable`;
+          
+          // 水曜日は休みに設定
+          const date = new Date(year, month - 1, i);
+          if (date.getDay() === 3) {
+            td.innerHTML = '<span class="attendance-icon attendance-off"><i class="fas fa-times mr-1"></i>休</span>';
+            td.dataset.status = 'holiday';
+            td.dataset.checked = '□';
+          } else {
+            // 初期状態は「出勤」
+            td.innerHTML = '<span class="attendance-icon attendance-on"><i class="fas fa-check mr-1"></i>出勤</span>';
+            td.dataset.checked = '✓';
+            td.dataset.status = 'checked';
           }
-          // 点击切换状态
-          dayTd.addEventListener("click", function() {
-            toggleDayStatus(this);
+          
+          // クリックイベント追加
+          td.addEventListener('click', function() {
+            if (this.dataset.status === 'checked') {
+              // 出勤から休みに変更
+              this.innerHTML = '<span class="attendance-icon attendance-off"><i class="fas fa-times mr-1"></i>休</span>';
+              this.dataset.status = 'holiday';
+              this.dataset.checked = '□';
+              
+              // 出勤日から削除
+              const dayIndex = emp.days.indexOf(i);
+              if (dayIndex > -1) {
+                emp.days.splice(dayIndex, 1);
+              }
+              
+              // 合計を更新
+              updateTotal(this);
+            } else if (this.dataset.status === 'holiday') {
+              // 休みから出勤に変更
+              this.innerHTML = '<span class="attendance-icon attendance-on"><i class="fas fa-check mr-1"></i>出勤</span>';
+              this.dataset.status = 'checked';
+              this.dataset.checked = '✓';
+              
+              // 出勤日に追加
+              if (!emp.days.includes(i)) {
+                emp.days.push(i);
+              }
+              
+              // 合計を更新
+              updateTotal(this);
+            }
           });
-          tr.appendChild(dayTd);
+          
+          tr.appendChild(td);
         }
-
-        // 6. 创建「出勤合計」单元格
+        
+        // 合計列を作成
         const totalTd = document.createElement("td");
         totalTd.className = "border px-3 py-2 font-bold text-sm text-gray-700 bg-gray-50";
+        totalTd.innerHTML = emp.days.length;
+        if (emp.days.length === 0) {
+          totalTd.innerHTML += ' <span class="text-red-500 text-xs ml-1">⚠ 出勤なし</span>';
+        } else if (emp.days.length < 3) {
+          totalTd.innerHTML += ' <span class="text-yellow-500 text-xs ml-1">⚠ 少ない</span>';
+        }
         totalTd.setAttribute('data-total', '');
-        
-        // 计算工作日数量
-        let workDays = 0;
-        for (let i = 1; i <= lastDay; i++) {
-          if (emp.days.includes(i)) {
-            workDays++;
-          }
-        }
-        totalTd.innerHTML = workDays;
-        
-        if (workDays === 0) {
-          totalTd.innerHTML += ' <span class="text-red-500 text-xs ml-1">⚠ 未出勤</span>';
-        } else if (workDays < 3) {
-          totalTd.innerHTML += ' <span class="text-yellow-500 text-xs ml-1">⚠ 少なめ</span>';
-        }
-        
         tr.appendChild(totalTd);
-
-        // 将完整行加入 tbody
+        
         tbody.appendChild(tr);
+        
+        // ランダムに編集中ユーザーを表示（仮想）
+        const editingBy = Math.random() < 0.3 ? allEditors[Math.floor(Math.random() * allEditors.length)] : null;
+        if (editingBy) {
+          const infoTr = document.createElement("tr");
+          const infoTd = document.createElement("td");
+          infoTd.colSpan = lastDay + 5; // グループ、名前、働き方、勤務時間、日数、合計
+          infoTd.colSpan = lastDay + 5; // 组别、姓名、工作方式、工作时间、天数、合计
+          infoTd.className = "text-xs text-blue-500 px-4 pt-1 pb-2 border-b";
+          infoTd.textContent = `👤 ${editingBy} がこの行を編集中です...`;
+          infoTr.appendChild(infoTd);
+          tbody.appendChild(infoTr);
+        }
       });
-
       
-      // 如果没有匹配的员工，显示提示信息
+      // 结果为0条时的消息
+      // 結果が0件の場合のメッセージ
       if (filteredEmployees.length === 0) {
         const emptyRow = document.createElement('tr');
         const emptyCell = document.createElement('td');
@@ -525,16 +719,24 @@
     }
 
     const employees = [
-      { group: 'A', name: '陸知花子', type: 'フルタイム', hours: '-', days: [1, 2, 3, 5, 7, 8, 9, 10] },
-      { group: 'A', name: '大崎次郎', type: 'フルタイム', hours: '-', days: [1, 2, 3, 6, 7, 8, 9, 10] },
+      { group: 'A', name: '陸知花子', type: '空白', hours: '-', days: [1, 2, 3, 5, 7, 8, 9, 10] },
+      { group: 'A', name: '大崎次郎', type: '空白', hours: '-', days: [1, 2, 3, 6, 7, 8, 9, 10] },
       { group: 'A', name: '品川太郎', type: '時短', hours: '10:00～14:00', days: [1, 2, 3, 4, 5, 6, 7, 8] },
-      { group: 'B', name: '東京歌子', type: 'フルタイム', hours: '-', days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+      { group: 'B', name: '東京歌子', type: '空白', hours: '-', days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
       { group: 'B', name: '川越一郎', type: '時短', hours: '09:30～13:30', days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
-      { group: 'MGR', name: '横浜夢', type: 'フルタイム', hours: '-', days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }
+      { group: 'MGR', name: '横浜夢', type: '空白', hours: '-', days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }
     ];
 
+    // モーダルのイベントリスナー設定
+    document.getElementById('cancelWorkType').addEventListener('click', closeWorkTypeModal);
+    document.getElementById('saveWorkType').addEventListener('click', saveWorkType);
+
+    // 初期表示時に名前ドロップダウンを設定
     updateEmployeeNames();
+    // 初期表示
     applyFilter();
   </script>
+  <!-- Font Awesome for icons -->
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 </body>
 </html>
