@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <title>CD出勤管理表 - v0.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
   <style>
     .holiday { background-color: #fef2f2; }
     .scroll-table {
@@ -15,10 +18,6 @@
     }
     table th, table td { white-space: nowrap; }
     tr:nth-child(even) { background-color: #f9fafb; }
-    input[type="checkbox"] {
-      transform: scale(1.15);
-      cursor: pointer;
-    }
     .time-input {
       border: 1px solid #e5e7eb;
       border-radius: 0.25rem;
@@ -76,11 +75,30 @@
       text-align: center;
     }
     .time-select {
-      width: 60px;
+      width: 120px;
       padding: 0.25rem;
       border: 1px solid #e5e7eb;
       border-radius: 0.25rem;
       font-size: 0.875rem;
+    }
+    .flatpickr-input {
+      width: 120px !important;
+    }
+    .day-cell {
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 40px;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .day-cell:hover {
+      background-color: #f0f9ff;
+    }
+    .day-cell.rest {
+      background-color: #fee2e2;
+      color: #dc2626;
     }
   </style>
 </head>
@@ -100,45 +118,9 @@
       <div id="timeInputContainer" class="mb-4 hidden">
         <label class="block text-sm font-medium text-gray-700 mb-2">勤務時間</label>
         <div class="flex items-center gap-2">
-          <select id="startHour" class="time-select">
-            <option value="">時</option>
-            <option value="09">09</option>
-            <option value="10">10</option>
-            <option value="11">11</option>
-            <option value="12">12</option>
-            <option value="13">13</option>
-            <option value="14">14</option>
-            <option value="15">15</option>
-            <option value="16">16</option>
-            <option value="17">17</option>
-          </select>
-          <select id="startMinute" class="time-select">
-            <option value="">分</option>
-            <option value="00">00</option>
-            <option value="15">15</option>
-            <option value="30">30</option>
-            <option value="45">45</option>
-          </select>
+          <input type="text" id="startTime" class="time-select" placeholder="開始時間">
           <span class="text-gray-500">～</span>
-          <select id="endHour" class="time-select">
-            <option value="">時</option>
-            <option value="09">09</option>
-            <option value="10">10</option>
-            <option value="11">11</option>
-            <option value="12">12</option>
-            <option value="13">13</option>
-            <option value="14">14</option>
-            <option value="15">15</option>
-            <option value="16">16</option>
-            <option value="17">17</option>
-          </select>
-          <select id="endMinute" class="time-select">
-            <option value="">分</option>
-            <option value="00">00</option>
-            <option value="15">15</option>
-            <option value="30">30</option>
-            <option value="45">45</option>
-          </select>
+          <input type="text" id="endTime" class="time-select" placeholder="終了時間">
         </div>
       </div>
       <div class="flex justify-end gap-2">
@@ -183,7 +165,6 @@
               <option value="">すべて</option>
             </select>
           </div>
-          <!-- フィルターボタンを削除 -->
         </div>
       </div>
 
@@ -193,8 +174,7 @@
           <tbody></tbody>
         </table>
       </div>
-    <!-- 保存ボタンを削除 -->
-</main>
+    </main>
 
     <section id="collabStatus" class="bg-white mx-6 mb-6 p-4 rounded-xl shadow text-sm text-gray-700 ring-1 ring-gray-100">
       <h3 class="font-semibold text-gray-700 mb-2">🧑‍💻 現在編集中のユーザー</h3>
@@ -218,23 +198,37 @@
   <script>
     let currentEditingCell = null;
 
+    // Flatpickrの設定
+    flatpickr.localize(flatpickr.l10ns.ja);
+    const timeConfig = {
+      enableTime: true,
+      noCalendar: true,
+      dateFormat: "H:i",
+      time_24hr: true,
+      minuteIncrement: 15
+    };
+
+    // 時間選択の初期化
+    function initTimePickers() {
+      flatpickr("#startTime", timeConfig);
+      flatpickr("#endTime", timeConfig);
+    }
+
+    // ページ読み込み時に初期化
+    document.addEventListener('DOMContentLoaded', initTimePickers);
+
     function openWorkTypeModal(cell) {
       currentEditingCell = cell;
       const modal = document.getElementById('workTypeModal');
       const select = document.getElementById('workTypeSelect');
       
-      // 現在の値を設定
       select.value = cell.textContent || '';
       if (cell.textContent === '時短') {
         const timeCell = cell.parentElement.querySelector('td:nth-child(4) input');
         const [start, end] = timeCell.value.split('～');
-        const [startHour, startMin] = start.split(':');
-        const [endHour, endMin] = end.split(':');
         
-        document.getElementById('startHour').value = startHour;
-        document.getElementById('startMinute').value = startMin;
-        document.getElementById('endHour').value = endHour;
-        document.getElementById('endMinute').value = endMin;
+        document.getElementById('startTime').value = start;
+        document.getElementById('endTime').value = end;
         document.getElementById('timeInputContainer').classList.remove('hidden');
       } else {
         document.getElementById('timeInputContainer').classList.add('hidden');
@@ -263,22 +257,18 @@
       if (!currentEditingCell) return;
       
       const select = document.getElementById('workTypeSelect');
-      const startHour = document.getElementById('startHour').value;
-      const startMinute = document.getElementById('startMinute').value;
-      const endHour = document.getElementById('endHour').value;
-      const endMinute = document.getElementById('endMinute').value;
+      const startTime = document.getElementById('startTime').value;
+      const endTime = document.getElementById('endTime').value;
       
       const row = currentEditingCell.parentElement;
       const timeCell = row.querySelector('td:nth-child(4)');
       const timeInputElement = timeCell.querySelector('input');
       
-      // 働き方を更新
       currentEditingCell.textContent = select.value;
       
-      // 時短の場合、勤務時間を更新して編集可能にする
       if (select.value === '時短') {
-        if (startHour && startMinute && endHour && endMinute) {
-          timeInputElement.value = `${startHour}:${startMinute}～${endHour}:${endMinute}`;
+        if (startTime && endTime) {
+          timeInputElement.value = `${startTime}～${endTime}`;
         } else {
           timeInputElement.value = '';
         }
@@ -291,49 +281,12 @@
       closeWorkTypeModal();
     }
 
-    function saveToLocal() {
-      const table = document.getElementById('shiftTable');
-      const tbody = table.querySelector('tbody');
-      const rows = Array.from(tbody.querySelectorAll('tr'));
-      const saved = rows.map(row => {
-        const tds = row.querySelectorAll('td');
-        const name = tds[1].textContent;
-        const hours = tds[3].querySelector('input') ? tds[3].querySelector('input').value : '-';
-        const checked = Array.from(tds)
-          .slice(4, 35)
-          .map((td, idx) => td.dataset.checked === '✓' ? idx + 1 : null)
-          .filter(v => v !== null);
-        return { name, hours, checked };
-      });
-      localStorage.setItem('shiftData', JSON.stringify(saved));
-      document.getElementById('lastEditor').textContent = 'あなた（ローカル保存）';
-      document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ja-JP');
-      alert('ローカルに保存しました！');
-    }
-  
-    // 編集中のユーザーを定期的にシミュレーション更新
-    const allEditors = ['山田太郎', '佐藤花子', '伊藤涼', '中村海'];
-    function simulateEditorActivity() {
-      const count = Math.floor(Math.random() * 3) + 1;
-      const shuffled = allEditors.sort(() => 0.5 - Math.random());
-      const active = shuffled.slice(0, count);
-      const list = document.getElementById('activeEditors');
-      list.innerHTML = '';
-      active.forEach(name => {
-        const li = document.createElement('li');
-        li.textContent = name;
-        list.appendChild(li);
-      });
-    }
-    setInterval(simulateEditorActivity, 8000);
-    simulateEditorActivity();
-
-    function updateTotal(checkbox) {
-      const row = checkbox.closest('tr');
-      const cells = row.querySelectorAll('td[data-checked]');
+    function updateTotal(cell) {
+      const row = cell.closest('tr');
+      const cells = row.querySelectorAll('td[data-status]');
       let count = 0;
       cells.forEach(cell => {
-        if (cell.dataset.checked === '✓') count++;
+        if (cell.dataset.status !== 'rest') count++;
       });
       
       const totalCell = row.querySelector('[data-total]');
@@ -347,7 +300,6 @@
     }
 
     function validateTimeInput(input) {
-      // 時間のバリデーション
       const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])～([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
       const isValid = timePattern.test(input.value);
       
@@ -357,7 +309,6 @@
         input.classList.add('time-input-error');
       }
       
-      // 編集された場合はハイライト表示
       input.parentElement.classList.add('edited');
       setTimeout(() => {
         input.parentElement.classList.remove('edited');
@@ -371,15 +322,12 @@
       const nameFilter = document.getElementById('filterName');
       const currentValue = nameFilter.value;
       
-      // グループでフィルタリングした従業員の名前を取得
       const filteredEmployees = employees.filter(emp => {
         return groupFilter ? emp.group === groupFilter : true;
       });
       
-      // 名前フィルタを更新
       nameFilter.innerHTML = '<option value="">すべて</option>';
       
-      // 重複なしで名前を取得
       const uniqueNames = [...new Set(filteredEmployees.map(emp => emp.name))];
       uniqueNames.forEach(name => {
         const option = document.createElement('option');
@@ -391,11 +339,22 @@
         nameFilter.appendChild(option);
       });
       
-      // 重要: 名前リストが変更された後に、以前の選択が無効になった場合は
-      // 「すべて」をデフォルトに設定し、フィルターを再適用
       if (currentValue && !uniqueNames.includes(currentValue)) {
         nameFilter.value = "";
       }
+    }
+
+    function toggleDayStatus(cell) {
+      if (cell.dataset.status === 'rest') {
+        cell.dataset.status = '';
+        cell.textContent = '';
+        cell.classList.remove('rest');
+      } else {
+        cell.dataset.status = 'rest';
+        cell.textContent = '休';
+        cell.classList.add('rest');
+      }
+      updateTotal(cell);
     }
 
     function applyFilter() {
@@ -403,10 +362,8 @@
       const groupFilter = document.getElementById('filterGroup').value;
       const nameFilter = document.getElementById('filterName').value;
       
-      // 月の最終日を計算
       const lastDay = new Date(year, month, 0).getDate();
       
-      // 水曜日を休館日とする
       const holidays = [];
       for (let i = 1; i <= lastDay; i++) {
         const d = new Date(year, month - 1, i);
@@ -418,7 +375,11 @@
       const thead = table.querySelector("thead");
       const tbody = table.querySelector("tbody");
 
+      // 清空表格内容
       thead.innerHTML = '';
+      tbody.innerHTML = '';
+
+      // 创建表头
       const theadRow = document.createElement("tr");
       theadRow.innerHTML = `
         <th class="border px-3 py-2 bg-gray-50">グループ</th>
@@ -427,18 +388,14 @@
         <th class="border px-3 py-2 bg-gray-50">勤務時間</th>
       `;
       
-      // 月の日数に合わせてヘッダー作成
+      // 添加日期列
       for (let i = 1; i <= lastDay; i++) {
         const date = new Date(year, month - 1, i);
         const day = weekDays[date.getDay()];
         const isHoliday = holidays.includes(i);
         const th = document.createElement("th");
-        th.innerHTML = `
-          <div class='text-base font-semibold'>${i}</div>
-          <div class='text-xs text-gray-500'>${day}</div>
-          ${isHoliday ? "<div title='休館日' class='text-red-500'>🔒</div>" : ""}
-        `;
         th.className = `border px-3 py-2 ${isHoliday ? 'holiday' : ''}`;
+        th.innerHTML = `${i}<br>${day}${isHoliday ? "<br><span title='休館日' class='text-red-500'>🔒</span>" : ""}`;
         theadRow.appendChild(th);
       }
       
@@ -448,91 +405,114 @@
       theadRow.appendChild(totalTh);
       thead.appendChild(theadRow);
 
-      tbody.innerHTML = '';
-      
-      // フィルタリング処理
+      // 过滤员工数据
       const filteredEmployees = employees.filter(emp => {
         const matchGroup = groupFilter ? emp.group === groupFilter : true;
         const matchName = nameFilter ? emp.name === nameFilter : true;
         return matchGroup && matchName;
       });
 
+      // 创建员工行
+      // 过滤员工数据后，生成每一行
+      // 清空 tbody 内容
+      tbody.innerHTML = '';
+
+      // 使用纯 DOM 方式创建每一行员工数据
       filteredEmployees.forEach(emp => {
+        // 创建 tr 元素
         const tr = document.createElement("tr");
-        
-        // グループ、名前、働き方の列を作成
-        tr.innerHTML = `
-          <td class="border px-3 py-2">${emp.group}</td>
-          <td class="border px-3 py-2">${emp.name}</td>
-          <td class="border px-3 py-2 work-type-cell" onclick="openWorkTypeModal(this)">${emp.type}</td>
-        `;
-        
-        // 勤務時間の列を作成（編集可能にする）
+
+        // 1. 创建「グループ」单元格
+        const groupTd = document.createElement("td");
+        groupTd.className = "border px-3 py-2";
+        groupTd.textContent = emp.group;
+        tr.appendChild(groupTd);
+
+        // 2. 创建「名前」单元格
+        const nameTd = document.createElement("td");
+        nameTd.className = "border px-3 py-2";
+        nameTd.textContent = emp.name;
+        tr.appendChild(nameTd);
+
+        // 3. 创建「働き方」单元格，并绑定点击事件弹出 Modal
+        const workTypeTd = document.createElement("td");
+        workTypeTd.className = "border px-3 py-2 work-type-cell";
+        workTypeTd.textContent = emp.type;
+        workTypeTd.addEventListener("click", function () {
+          openWorkTypeModal(workTypeTd);
+        });
+        tr.appendChild(workTypeTd);
+
+        // 4. 创建「勤務時間」单元格与输入框
         const timeTd = document.createElement("td");
         timeTd.className = "border px-3 py-2";
-        
-        // 入力フィールドを作成
         const timeInput = document.createElement("input");
         timeInput.type = "text";
         timeInput.className = "time-input text-center";
         timeInput.value = emp.hours;
         timeInput.placeholder = "例: 9:00～17:00";
-        
-        // 時短勤務の場合のみ編集可能にする
-        timeInput.readOnly = emp.type !== '時短';
-        if (emp.type !== '時短') {
+        // 仅当类型为「時短」时允许输入，否则设为只读并置为 '-'
+        if (emp.type === '時短') {
+          timeInput.readOnly = false;
+        } else {
+          timeInput.readOnly = true;
           timeInput.value = '-';
         }
-        
-        // バリデーション
+        // 绑定 change 事件进行验证及更新数据
         timeInput.addEventListener('change', function() {
           validateTimeInput(this);
-          // 変更をemployeesに反映
           emp.hours = this.value;
         });
-        
-        // 入力フィールドをセルに追加
         timeTd.appendChild(timeInput);
         tr.appendChild(timeTd);
-        
-        // 日付のチェックボックスを作成
+
+        // 5. 创建日期单元格（每日）—确保每个单元格都是独立的 td
         for (let i = 1; i <= lastDay; i++) {
-          const td = document.createElement("td");
-          td.className = `border px-2 py-2 ${holidays.includes(i) ? 'holiday' : ''}`;
-          const isChecked = emp.days.includes(i);
-          td.innerHTML = `<input type="checkbox" class="form-checkbox h-5 w-5 ${isChecked ? 'text-blue-600' : 'text-gray-400'}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.dataset.checked = this.checked ? '✓' : '□'; updateTotal(this);" />`;
-          td.dataset.checked = isChecked ? '✓' : '□';
-          tr.appendChild(td);
+          const dayTd = document.createElement("td");
+          dayTd.className = `border px-2 py-2 day-cell ${holidays.includes(i) ? 'holiday' : ''}`;
+          dayTd.dataset.day = i; // 设置 data-day 属性
+
+          // 如果该天不在 emp.days 内，则视作休息日
+          if (!emp.days.includes(i)) {
+            dayTd.dataset.status = 'rest';
+            dayTd.textContent = '休';
+            dayTd.classList.add('rest');
+          }
+          // 点击切换状态
+          dayTd.addEventListener("click", function() {
+            toggleDayStatus(this);
+          });
+          tr.appendChild(dayTd);
         }
-        
-        // 合計の列を作成
+
+        // 6. 创建「出勤合計」单元格
         const totalTd = document.createElement("td");
         totalTd.className = "border px-3 py-2 font-bold text-sm text-gray-700 bg-gray-50";
-        totalTd.innerHTML = emp.days.length;
-        if (emp.days.length === 0) {
+        totalTd.setAttribute('data-total', '');
+        
+        // 计算工作日数量
+        let workDays = 0;
+        for (let i = 1; i <= lastDay; i++) {
+          if (emp.days.includes(i)) {
+            workDays++;
+          }
+        }
+        totalTd.innerHTML = workDays;
+        
+        if (workDays === 0) {
           totalTd.innerHTML += ' <span class="text-red-500 text-xs ml-1">⚠ 未出勤</span>';
-        } else if (emp.days.length < 3) {
+        } else if (workDays < 3) {
           totalTd.innerHTML += ' <span class="text-yellow-500 text-xs ml-1">⚠ 少なめ</span>';
         }
-        totalTd.setAttribute('data-total', '');
+        
         tr.appendChild(totalTd);
-        
+
+        // 将完整行加入 tbody
         tbody.appendChild(tr);
-        
-        // ランダムに編集中のユーザーを表示する（仮想）
-        const editingBy = Math.random() < 0.3 ? allEditors[Math.floor(Math.random() * allEditors.length)] : null;
-        if (editingBy) {
-          const infoTr = document.createElement("tr");
-          const infoTd = document.createElement("td");
-          infoTd.colSpan = lastDay + 5; // グループ、名前、働き方、勤務時間、日数、合計
-          infoTd.className = "text-xs text-blue-500 px-4 pt-1 pb-2 border-b";
-          infoTd.textContent = `👤 ${editingBy} がこの行を編集中...`;
-          infoTr.appendChild(infoTd);
-          tbody.appendChild(infoTr);
-        }
       });
+
       
-      // 結果が0件の場合のメッセージ
+      // 如果没有匹配的员工，显示提示信息
       if (filteredEmployees.length === 0) {
         const emptyRow = document.createElement('tr');
         const emptyCell = document.createElement('td');
@@ -553,9 +533,7 @@
       { group: 'MGR', name: '横浜夢', type: 'フルタイム', hours: '-', days: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] }
     ];
 
-    // 初期表示時に名前ドロップダウンを設定
     updateEmployeeNames();
-    // 初期表示
     applyFilter();
   </script>
 </body>
